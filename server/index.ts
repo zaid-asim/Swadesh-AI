@@ -6,10 +6,6 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import * as schema from "@shared/schema";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const { Pool } = pg;
 
@@ -21,7 +17,6 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  // Add SSL for production (required by Render)
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
 });
 
@@ -87,13 +82,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Run migrations on startup
   try {
-    // In production, migrations are copied to dist/migrations
-    // In dev, they are in the root migrations folder
-    const migrationsFolder = process.env.NODE_ENV === "production" 
-      ? path.join(__dirname, "../migrations") 
-      : path.join(__dirname, "../migrations");
+    // UPDATED PATH LOGIC:
+    // In production (dist/index.cjs), we look for 'dist/migrations' relative to root
+    // In development (server/index.ts), we look for 'migrations' relative to root
+    const migrationsFolder = process.env.NODE_ENV === "production"
+      ? path.join(process.cwd(), "dist", "migrations")
+      : path.join(process.cwd(), "migrations");
 
     log(`Running migrations from ${migrationsFolder}...`);
     await migrate(db, { migrationsFolder });
@@ -113,9 +108,6 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -123,10 +115,6 @@ app.use((req, res, next) => {
     await setupVite(server, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   server.listen(
     {
