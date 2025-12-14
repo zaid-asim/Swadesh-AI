@@ -1,6 +1,31 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import pg from "pg";
+import * as schema from "@shared/schema";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const { Pool } = pg;
+
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to provision a database?",
+  );
+}
+
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  // Add SSL for production (required by Render)
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
+});
+
+export const db = drizzle(pool, { schema });
 
 const app = express();
 
@@ -50,6 +75,10 @@ app.use((req, res, next) => {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+
       log(logLine);
     }
   });
@@ -58,6 +87,22 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Run migrations on startup
+  try {
+    // In production, migrations are copied to dist/migrations
+    // In dev, they are in the root migrations folder
+    const migrationsFolder = process.env.NODE_ENV === "production" 
+      ? path.join(__dirname, "../migrations") 
+      : path.join(__dirname, "../migrations");
+
+    log(`Running migrations from ${migrationsFolder}...`);
+    await migrate(db, { migrationsFolder });
+    log("Migrations completed successfully");
+  } catch (error) {
+    console.error("Failed to run migrations:", error);
+    process.exit(1);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
