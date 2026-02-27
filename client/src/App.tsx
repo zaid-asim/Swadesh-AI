@@ -23,9 +23,23 @@ import LanguageConverter from "@/pages/tools/language";
 import VoiceOperations from "@/pages/tools/voice";
 import ImageVision from "@/pages/tools/image";
 import CreativeTools from "@/pages/tools/creative";
+import VideoBrain from "@/pages/tools/video";
+import WeatherTool from "@/pages/tools/weather";
+import CalculatorPage from "@/pages/tools/calculator";
+import DictionaryPage from "@/pages/tools/dictionary";
+import CurrencyPage from "@/pages/tools/currency";
+import QuizPage from "@/pages/tools/quiz";
+import OCRPage from "@/pages/tools/ocr";
+import ImageGenPage from "@/pages/tools/image-gen";
+import GrammarPage from "@/pages/tools/grammar";
+import RecipePage from "@/pages/tools/recipe";
+import TravelPage from "@/pages/tools/travel";
+import ResumePage from "@/pages/tools/resume";
+import HealthPage from "@/pages/tools/health";
 import Landing from "@/pages/landing";
 import Setup from "@/pages/setup";
 import MemoryPage from "@/pages/memory";
+import AccountPage from "@/pages/account";
 import type { User } from "@shared/schema";
 import { Loader2 } from "lucide-react";
 
@@ -43,9 +57,7 @@ function LoadingScreen() {
 function Router() {
   const { user, isLoading, isAuthenticated } = useAuth();
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  if (isLoading) return <LoadingScreen />;
 
   if (!isAuthenticated) {
     return (
@@ -71,10 +83,13 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/chat" component={Chat} />
       <Route path="/settings" component={Settings} />
+      <Route path="/account" component={AccountPage} />
       <Route path="/music" component={Music} />
       <Route path="/productivity" component={Productivity} />
       <Route path="/search" component={Search} />
       <Route path="/daily" component={SwadeshDaily} />
+      <Route path="/memory" component={MemoryPage} />
+      {/* Original Tools */}
       <Route path="/tools/document" component={DocumentMaster} />
       <Route path="/tools/code" component={CodeLab} />
       <Route path="/tools/study" component={StudyPro} />
@@ -82,7 +97,21 @@ function Router() {
       <Route path="/tools/voice" component={VoiceOperations} />
       <Route path="/tools/image" component={ImageVision} />
       <Route path="/tools/creative" component={CreativeTools} />
-      <Route path="/memory" component={MemoryPage} />
+      {/* Round 2 Tools */}
+      <Route path="/tools/video" component={VideoBrain} />
+      <Route path="/tools/weather" component={WeatherTool} />
+      <Route path="/tools/calculator" component={CalculatorPage} />
+      <Route path="/tools/dictionary" component={DictionaryPage} />
+      <Route path="/tools/currency" component={CurrencyPage} />
+      <Route path="/tools/quiz" component={QuizPage} />
+      {/* Round 3 Tools */}
+      <Route path="/tools/ocr" component={OCRPage} />
+      <Route path="/tools/image-gen" component={ImageGenPage} />
+      <Route path="/tools/grammar" component={GrammarPage} />
+      <Route path="/tools/recipe" component={RecipePage} />
+      <Route path="/tools/travel" component={TravelPage} />
+      <Route path="/tools/resume" component={ResumePage} />
+      <Route path="/tools/health" component={HealthPage} />
       <Route component={NotFound} />
     </Switch>
   );

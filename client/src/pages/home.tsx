@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { 
-  FileText, Code, GraduationCap, Languages, Search, Mic, 
+import {
+  FileText, Code, GraduationCap, Languages, Search, Mic,
   Image, Video, Newspaper, ListTodo, Sparkles, Settings,
-  Music, Volume2, Clock, MapPin
+  Music, Volume2, Clock, MapPin, User, Brain, CloudSun,
+  Calculator, BookOpen, DollarSign, HelpCircle,
+  ScanText, Wand2, PenLine, UtensilsCrossed, Plane, FileUser, Heart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,17 +17,36 @@ import { indianQuotes } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
 const tools = [
+  // Core AI Tools
   { id: "document-master", title: "Document Master", description: "PDF reader, summarizer, translator, notes extraction", icon: FileText, gradient: "saffron" as const, path: "/tools/document" },
   { id: "code-lab", title: "Code AI Lab", description: "Code generation, debugging, optimization, explanation", icon: Code, gradient: "blue" as const, path: "/tools/code" },
   { id: "study-pro", title: "Study Pro Suite", description: "NCERT solutions, MCQ generator, math solver", icon: GraduationCap, gradient: "green" as const, path: "/tools/study" },
   { id: "language-converter", title: "Language Converter", description: "Hindi, English, Tamil, Telugu, Bengali translation", icon: Languages, gradient: "purple" as const, path: "/tools/language" },
   { id: "search-engine", title: "AI Search", description: "Smart search with AI summaries and knowledge panels", icon: Search, gradient: "saffron" as const, path: "/search" },
   { id: "voice-ops", title: "Voice Operations", description: "Voice search, commands, and notes", icon: Mic, gradient: "blue" as const, path: "/tools/voice" },
-  { id: "image-vision", title: "Image Vision", description: "OCR, object detection, scene analysis", icon: Image, gradient: "green" as const, path: "/tools/image" },
-  { id: "video-brain", title: "Video Brain", description: "Video summarization and key points", icon: Video, gradient: "purple" as const, path: "/tools/video" },
-  { id: "swadesh-daily", title: "Swadesh Daily", description: "Daily quotes, facts, and news", icon: Newspaper, gradient: "saffron" as const, path: "/daily" },
-  { id: "productivity", title: "Productivity", description: "To-do list, reminders, smart notes", icon: ListTodo, gradient: "blue" as const, path: "/productivity" },
-  { id: "creative-tools", title: "Creative Tools", description: "Script, story, poem generator", icon: Sparkles, gradient: "green" as const, path: "/tools/creative" },
+  // Vision Tools
+  { id: "image-vision", title: "Image Vision", description: "AI image analysis: object detection, scene analysis", icon: Image, gradient: "green" as const, path: "/tools/image" },
+  { id: "ocr", title: "OCR Scanner", description: "Extract text from images — printed, handwritten, Hindi", icon: ScanText, gradient: "purple" as const, path: "/tools/ocr" },
+  { id: "image-gen", title: "AI Image Studio", description: "Generate images from text prompts with style options", icon: Wand2, gradient: "saffron" as const, path: "/tools/image-gen" },
+  { id: "video-brain", title: "Video Brain", description: "Video summarization, key points, chapter breakdown", icon: Video, gradient: "blue" as const, path: "/tools/video" },
+  // Writing & Language
+  { id: "grammar", title: "Grammar & Writing AI", description: "Grammar check, improve, formal/casual writing", icon: PenLine, gradient: "green" as const, path: "/tools/grammar" },
+  { id: "creative-tools", title: "Creative Tools", description: "Script, story, poem & essay generator", icon: Sparkles, gradient: "purple" as const, path: "/tools/creative" },
+  // Knowledge & Learning
+  { id: "dictionary", title: "AI Dictionary", description: "Word definitions, etymology, Hindi translation", icon: BookOpen, gradient: "saffron" as const, path: "/tools/dictionary" },
+  { id: "quiz", title: "Quiz Master", description: "AI-generated quizzes on Indian history, science & more", icon: HelpCircle, gradient: "blue" as const, path: "/tools/quiz" },
+  // Lifestyle
+  { id: "recipe", title: "AI Recipe Chef", description: "Detailed Indian recipes with ingredients & nutrition", icon: UtensilsCrossed, gradient: "green" as const, path: "/tools/recipe" },
+  { id: "health", title: "Health & Wellness AI", description: "Ayurveda, yoga, diet plans & symptom guidance", icon: Heart, gradient: "purple" as const, path: "/tools/health" },
+  { id: "travel", title: "AI Travel Planner", description: "Complete itineraries for India & worldwide", icon: Plane, gradient: "saffron" as const, path: "/tools/travel" },
+  { id: "weather", title: "Weather AI", description: "AI-powered climate insights for Indian cities", icon: CloudSun, gradient: "blue" as const, path: "/tools/weather" },
+  // Utilities
+  { id: "calculator", title: "AI Calculator", description: "Smart calculator with AI step-by-step explanations", icon: Calculator, gradient: "green" as const, path: "/tools/calculator" },
+  { id: "currency", title: "Currency Converter", description: "Convert 12 currencies with AI exchange rates", icon: DollarSign, gradient: "purple" as const, path: "/tools/currency" },
+  { id: "resume", title: "Resume Builder", description: "ATS-optimized resume generated with AI in seconds", icon: FileUser, gradient: "saffron" as const, path: "/tools/resume" },
+  // Daily & Productivity
+  { id: "swadesh-daily", title: "Swadesh Daily", description: "Daily quotes, facts, and news", icon: Newspaper, gradient: "blue" as const, path: "/daily" },
+  { id: "productivity", title: "Productivity Suite", description: "To-do list, reminders, smart notes — all persisted", icon: ListTodo, gradient: "green" as const, path: "/productivity" },
 ];
 
 export default function Home() {
@@ -53,15 +74,24 @@ export default function Home() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-background">
       <ParticleBackground />
-      
+
       <header className="fixed top-0 left-0 right-0 z-50 glassmorphism">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full tricolor-gradient-animated" />
             <span className="font-bold text-gradient-tricolor hidden sm:inline">SWADESH AI</span>
           </div>
-          
+
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/memory")}
+              title="Memory Manager"
+              data-testid="button-memory"
+            >
+              <Brain className="h-5 w-5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -77,6 +107,15 @@ export default function Home() {
               data-testid="button-settings"
             >
               <Settings className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/account")}
+              title="My Account"
+              data-testid="button-account"
+            >
+              <User className="h-5 w-5" />
             </Button>
             <ThemeToggle />
           </div>
