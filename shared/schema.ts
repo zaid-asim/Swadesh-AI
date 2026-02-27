@@ -32,6 +32,8 @@ export const memories = pgTable("memories", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   category: varchar("category").default("general"),
+  tags: text("tags").default(""),
+  isPinned: boolean("is_pinned").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -39,7 +41,12 @@ export const memories = pgTable("memories", {
 export const insertMemorySchema = createInsertSchema(memories).pick({
   content: true,
   category: true,
+  tags: true,
+  isPinned: true,
 });
+
+export const memoryCategories = ["general", "personal", "work", "health", "learning"] as const;
+export type MemoryCategory = typeof memoryCategories[number];
 
 export type InsertMemory = z.infer<typeof insertMemorySchema>;
 export type Memory = typeof memories.$inferSelect;
@@ -73,7 +80,9 @@ export const settingsSchema = z.object({
   theme: z.enum(["light", "dark"]).default("dark"),
   personality: z.enum(["formal", "friendly", "professional", "teacher", "dc-mode"]).default("friendly"),
   ttsSpeed: z.number().min(0.5).max(2).default(1),
+  ttsPitch: z.number().min(0.5).max(2).default(1),
   ttsEnabled: z.boolean().default(true),
+  ttsVoiceName: z.string().default(""),
   musicVolume: z.number().min(0).max(1).default(0.5),
   musicLoop: z.boolean().default(true),
   musicAutoPlay: z.boolean().default(false),

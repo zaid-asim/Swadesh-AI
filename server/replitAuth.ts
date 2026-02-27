@@ -1,60 +1,69 @@
-import { type Express, type Request, type Response, type NextFunction } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import passport from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
-import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-const PgStore = connectPg(session);
-
+// ─── Session Setup ─────────────────────────────────────────────────────────────
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 7 days
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000;
+  const secret = process.env.SESSION_SECRET || "swadesh_dev_secret_change_in_prod";
+
+  if (process.env.DATABASE_URL) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const connectPg = require("connect-pg-simple");
+      const PgStore = connectPg(session);
+      return session({
+        store: new PgStore({
+          conString: process.env.DATABASE_URL,
+          createTableIfMissing: true,
+          tableName: "sessions",
+          ttl: sessionTtl / 1000,
+        }),
+        secret,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          maxAge: sessionTtl,
+        },
+      });
+    } catch {
+      console.warn("⚠ PgStore unavailable, using MemoryStore");
+    }
+  }
+
   return session({
-    store: new PgStore({
-      conString: process.env.DATABASE_URL,
-      createTableIfMissing: true,
-      tableName: "sessions",
-      ttl: sessionTtl / 1000,
-    }),
-    secret: process.env.SESSION_SECRET || "default_dev_secret",
+    secret,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Secure cookies in production
+      secure: false,
       maxAge: sessionTtl,
     },
   });
 }
 
+// ─── Auth Setup ────────────────────────────────────────────────────────────────
 export async function setupAuth(app: Express) {
-  // 1. Setup Session & Passport
-  app.set("trust proxy", 1); // Required for Render/Replit proxies
+  app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // 2. User Serialization (How user is stored in session)
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
+  passport.serializeUser((user: any, done) => done(null, user.id));
 
   passport.deserializeUser(async (id: string, done) => {
     try {
+      if (!process.env.DATABASE_URL) { done(null, false); return; }
       const user = await storage.getUser(id);
       if (user) {
-        // We reconstruct the 'claims' object so your existing code (routes.ts) continues to work
-        const userWithClaims = {
+        done(null, {
           ...user,
-          claims: {
-            sub: user.id,
-            email: user.email,
-            first_name: user.firstName,
-            last_name: user.lastName,
-            profile_image_url: user.profileImageUrl
-          }
-        };
-        done(null, userWithClaims);
+          claims: { sub: user.id, email: user.email, first_name: user.firstName, last_name: user.lastName, profile_image_url: user.profileImageUrl },
+        });
       } else {
         done(null, false);
       }
@@ -63,66 +72,78 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // 3. Google Strategy Configuration
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.BASE_URL) {
-    console.warn("⚠️  Google Auth Missing Credentials! Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and BASE_URL env vars.");
-  } else {
-    passport.use(new GoogleStrategy({
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${process.env.BASE_URL}/api/auth/callback/google`,
-    }, async (accessToken, refreshToken, profile, done) => {
-      try {
-        const googleId = profile.id;
-        const email = profile.emails?.[0]?.value || "";
-        const firstName = profile.name?.givenName || "User";
-        const lastName = profile.name?.familyName || "";
-        const photo = profile.photos?.[0]?.value;
-
-        // Upsert user in database (Update if exists, Create if new)
-        // We assume storage.upsertUser exists based on your previous code. 
-        // If not, you might need to use storage.createUser logic here.
-        await storage.upsertUser({
-          id: googleId,
-          email: email,
-          firstName: firstName,
-          lastName: lastName,
-          profileImageUrl: photo
-        });
-
-        const user = await storage.getUser(googleId);
-        done(null, user);
-      } catch (err) {
-        console.error("Auth Error:", err);
-        done(err, undefined);
-      }
-    }));
-
-    // 4. Auth Routes
-    // Start Login
-    app.get("/api/login", passport.authenticate("google", { scope: ["profile", "email"] }));
-
-    // Callback from Google
-    app.get("/api/auth/callback/google", 
-      passport.authenticate("google", { failureRedirect: "/login?error=auth_failed" }),
-      (req, res) => {
-        res.redirect("/"); // Redirect to home on success
-      }
+  // ─── Google OAuth ────────────────────────────────────────────────────────────
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.BASE_URL) {
+    const { Strategy: GoogleStrategy } = await import("passport-google-oauth20");
+    passport.use(
+      new GoogleStrategy(
+        {
+          clientID: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          callbackURL: `${process.env.BASE_URL}/api/auth/callback/google`,
+        },
+        async (_accessToken: string, _refreshToken: string, profile: any, done: any) => {
+          try {
+            const userData = {
+              id: profile.id,
+              email: profile.emails?.[0]?.value || "",
+              firstName: profile.name?.givenName || "User",
+              lastName: profile.name?.familyName || "",
+              profileImageUrl: profile.photos?.[0]?.value,
+            };
+            await storage.upsertUser(userData);
+            const user = await storage.getUser(profile.id);
+            done(null, user);
+          } catch (err) {
+            console.error("Google Auth Error:", err);
+            done(err as Error, undefined);
+          }
+        }
+      )
     );
+
+    app.get("/api/login", passport.authenticate("google", { scope: ["profile", "email"] }));
+    app.get(
+      "/api/auth/callback/google",
+      passport.authenticate("google", { failureRedirect: "/" }),
+      (_req, res) => res.redirect("/")
+    );
+  } else {
+    // Dev bypass: auto-login with a dev user
+    console.warn("⚠ Google OAuth not configured — dev bypass active at /api/login");
+    app.get("/api/login", (req: any, res) => {
+      req.session.devUser = {
+        id: "dev-user-001",
+        email: "dev@swadesh.ai",
+        firstName: "Dev",
+        lastName: "User",
+        setupCompleted: true,
+        profileImageUrl: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      res.redirect("/");
+    });
   }
 
-  // Logout
-  app.get("/api/logout", (req, res, next) => {
-    req.logout((err) => {
+  // ─── Logout ──────────────────────────────────────────────────────────────────
+  app.get("/api/logout", (req: any, res, next) => {
+    req.logout((err: any) => {
       if (err) return next(err);
+      if (req.session) req.session.destroy(() => { });
       res.redirect("/");
     });
   });
 }
 
-// 5. Middleware to protect routes
+// ─── Auth Middleware ───────────────────────────────────────────────────────────
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated()) {
+  if (req.isAuthenticated()) return next();
+  if ((req as any).session?.devUser) {
+    (req as any).user = {
+      ...(req as any).session.devUser,
+      claims: { sub: (req as any).session.devUser.id },
+    };
     return next();
   }
   res.status(401).json({ message: "Unauthorized" });

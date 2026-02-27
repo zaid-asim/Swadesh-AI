@@ -27,8 +27,8 @@ const RESPONSE_LENGTH_INSTRUCTIONS = {
 };
 
 export async function chat(
-  message: string, 
-  personality: string = "friendly", 
+  message: string,
+  personality: string = "friendly",
   context?: string,
   mode: "chat" | "voice" = "chat"
 ): Promise<string> {
@@ -47,7 +47,7 @@ export async function chat(
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: fullMessage,
       config: {
         systemInstruction: systemPrompt,
@@ -72,7 +72,7 @@ export async function analyzeDocument(content: string, action: string, targetLan
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: prompts[action] || prompts.summarize,
       config: {
         systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are a document analysis expert. Provide clear, accurate, and helpful analysis.`,
@@ -96,7 +96,7 @@ export async function analyzeCode(code: string, action: string, language: string
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: prompts[action] || prompts.explain,
       config: {
         systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are an expert programmer. Provide clean, well-commented, production-ready code when generating. Be thorough when debugging or explaining.`,
@@ -112,7 +112,7 @@ export async function analyzeCode(code: string, action: string, language: string
 
 export async function studyAssistant(topic: string, action: string, grade?: string, subject?: string): Promise<string> {
   const context = grade && subject ? `For Class ${grade} ${subject}: ` : "";
-  
+
   const prompts: Record<string, string> = {
     "ncert-solution": `${context}Provide a detailed NCERT-style solution for: ${topic}. Include step-by-step explanation.`,
     "mcq-generate": `${context}Generate 5 multiple choice questions (MCQs) with answers and explanations on the topic: ${topic}`,
@@ -123,7 +123,7 @@ export async function studyAssistant(topic: string, action: string, grade?: stri
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: prompts[action] || prompts["ncert-solution"],
       config: {
         systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are an expert Indian education tutor familiar with NCERT curriculum. Provide accurate, student-friendly explanations.`,
@@ -152,7 +152,7 @@ export async function translateText(text: string, sourceLanguage: string, target
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: prompt,
       config: {
         systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are a professional translator specializing in Indian languages. Provide accurate, natural-sounding translations.`,
@@ -175,7 +175,7 @@ export async function searchAndSummarize(query: string, type: string): Promise<{
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: `${typeContext[type] || typeContext.general} for the following query: ${query}`,
       config: {
         systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are a search and research assistant. Provide accurate, well-organized information.`,
@@ -206,7 +206,7 @@ export async function analyzeImage(imageBase64: string, action: string): Promise
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: [
         {
           inlineData: {
@@ -235,7 +235,7 @@ export async function generateCreativeContent(type: string, prompt: string, lang
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: typePrompts[type] || typePrompts.story,
       config: {
         systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are a creative writer and content creator. Generate engaging, original content.`,
@@ -246,5 +246,163 @@ export async function generateCreativeContent(type: string, prompt: string, lang
   } catch (error) {
     console.error("Creative content error:", error);
     throw new Error("Failed to generate creative content");
+  }
+}
+
+export async function extractTextOCR(imageBase64: string, mimeType: string = "image/jpeg"): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType as any,
+                data: imageBase64,
+              },
+            },
+            {
+              text: "Extract ALL text from this image exactly as it appears. Preserve formatting, line breaks, and structure as much as possible. If there is handwritten text, transcribe it accurately. If there are multiple languages, identify each. Return ONLY the extracted text with no additional commentary.",
+            },
+          ],
+        },
+      ],
+    });
+    return response.text || "No text found in the image.";
+  } catch (error) {
+    console.error("OCR error:", error);
+
+    throw error;
+  }
+}
+
+export async function generateImagePrompt(prompt: string, style: string): Promise<string> {
+  // Since direct image generation via Gemini API may not be available in all regions,
+  // we generate a detailed image description + SVG/ASCII art as a creative fallback
+  try {
+    const styleGuides: Record<string, string> = {
+      realistic: "photorealistic, highly detailed, professional photography style",
+      artistic: "artistic, painterly, impressionist style with vibrant colors",
+      cartoon: "cartoon style, colorful, playful, animated",
+      indian: "traditional Indian art style, Madhubani/Warli inspired, folk art, vibrant colors, cultural motifs",
+      "3d": "3D render, CGI, modern, high-tech look",
+      sketch: "pencil sketch, hand-drawn, detailed line art",
+    };
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: `Generate an extremely detailed, vivid description of this image (as if describing it to an artist): "${prompt}" in ${styleGuides[style] || styleGuides.realistic} style. Make it 3-4 sentences rich in visual detail — colors, composition, lighting, atmosphere. Then on a new line write "PROMPT:" followed by a concise Stable Diffusion / DALL-E prompt for this image.`,
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Image generation error:", error);
+    throw error;
+  }
+}
+
+export async function checkGrammar(text: string, mode: string): Promise<string> {
+  const modePrompts: Record<string, string> = {
+    check: `Check the following text for grammar, spelling, punctuation, and style errors. List each error with the correction and explanation:\n\n${text}`,
+    improve: `Rewrite the following text to be more professional, clear, and well-written while preserving the original meaning. Show the improved version:\n\n${text}`,
+    formal: `Convert the following text to formal/professional English:\n\n${text}`,
+    casual: `Rewrite the following text in a friendly, casual tone:\n\n${text}`,
+    hindi: `Check grammar and improve the following Hindi text. Provide corrections:\n\n${text}`,
+  };
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: modePrompts[mode] || modePrompts.check,
+      config: {
+        systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are an expert language editor and writing assistant.`,
+      },
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Grammar check error:", error);
+    throw error;
+  }
+}
+
+export async function generateRecipe(query: string, dietary: string, cuisine: string): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: `Generate a detailed recipe for "${query}". Dietary preference: ${dietary}. Cuisine: ${cuisine}.
+Include: Recipe name, Description, Prep time, Cook time, Servings, Ingredients (with quantities), Step-by-step instructions, Pro tips, Nutritional info (approximate). 
+Format clearly with sections. Focus on Indian cooking techniques and authentic flavors where applicable.`,
+      config: {
+        systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are an expert Indian chef and nutritionist. You know traditional Indian recipes as well as fusion cuisine.`,
+      },
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Recipe error:", error);
+    throw error;
+  }
+}
+
+export async function planTravel(destination: string, duration: string, budget: string, interests: string): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: `Create a detailed travel itinerary for ${destination}.
+Duration: ${duration} | Budget: ${budget} | Interests: ${interests}
+Include: Day-by-day itinerary, must-see attractions, local food recommendations, accommodation suggestions, transportation tips, best time to visit, estimated costs, cultural tips and etiquette, packing suggestions, and hidden gems only locals know. Format beautifully with clear day headings.`,
+      config: {
+        systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are an expert Indian travel guide with deep knowledge of every state, city, heritage site, and tourist attraction in India and worldwide.`,
+      },
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Travel planner error:", error);
+    throw error;
+  }
+}
+
+export async function buildResume(data: Record<string, string>): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: `Create a professional, ATS-optimized resume based on this information:
+Name: ${data.name}
+Email: ${data.email}
+Phone: ${data.phone}
+Role: ${data.role}
+Experience: ${data.experience}
+Skills: ${data.skills}
+Education: ${data.education}
+Achievements: ${data.achievements || ""}
+Generate a complete, well-formatted resume with professional summary, experience bullets with impact metrics, skills section, education, and a closing statement. Use action verbs. Make it stand out for Indian job market.`,
+      config: {
+        systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are an expert HR consultant and resume writer with 20 years of experience in the Indian and global job market.`,
+      },
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Resume builder error:", error);
+    throw error;
+  }
+}
+
+export async function getHealthAdvice(symptom: string, age: string, type: string): Promise<string> {
+  const typePrompts: Record<string, string> = {
+    symptoms: `I have these symptoms: ${symptom}. Age: ${age}. Provide: possible causes, home remedies, when to see a doctor, and general advice. Always recommend consulting a doctor for serious symptoms.`,
+    yoga: `Recommend yoga poses and breathing exercises for: ${symptom}. Include: pose name, how to do it, duration, benefits. Age: ${age}.`,
+    ayurveda: `Provide Ayurvedic home remedies and tips for: ${symptom}. Include traditional Indian remedies, herbs, dietary advice. Age: ${age}.`,
+    diet: `Create a healthy Indian diet plan for: ${symptom || "general wellness"}. Age: ${age}. Include breakfast, lunch, dinner, snacks with Indian foods.`,
+  };
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: typePrompts[type] || typePrompts.symptoms,
+      config: {
+        systemInstruction: `${SWADESH_SYSTEM_PROMPT}\n\nYou are a health and wellness advisor with knowledge of modern medicine, Ayurveda, and yoga. Always include a disclaimer that this is general information and not medical advice. Recommend consulting a qualified doctor for diagnosis and treatment.`,
+      },
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Health advice error:", error);
+    throw error;
   }
 }

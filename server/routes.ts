@@ -11,6 +11,13 @@ import {
   searchAndSummarize,
   analyzeImage,
   generateCreativeContent,
+  extractTextOCR,
+  generateImagePrompt,
+  checkGrammar,
+  generateRecipe,
+  planTravel,
+  buildResume,
+  getHealthAdvice,
 } from "./gemini";
 import {
   chatRequestSchema,
@@ -29,6 +36,19 @@ import { fromZodError } from "zod-validation-error";
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
+  // ─── Health Check (used by Render) ──────────────────────────────────────────
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      app: "Swadesh AI",
+      version: "2.0.0",
+      uptime: Math.floor(process.uptime()),
+      db: !!process.env.DATABASE_URL,
+      ai: !!process.env.GEMINI_API_KEY,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -38,6 +58,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
+  });
+
+  app.get("/api/auth/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const memories = await storage.getMemories(userId);
+      res.json({ user, memoriesCount: memories.length });
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.get("/api/auth/logout", (req: any, res) => {
+    req.logout(() => {
+      res.json({ success: true });
+    });
   });
 
   app.post("/api/user/setup", isAuthenticated, async (req: any, res) => {
@@ -121,8 +159,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const fullContext = [memoriesContext, data.context].filter(Boolean).join("\n\n");
       const response = await chat(
-        data.message, 
-        data.personality || "friendly", 
+        data.message,
+        data.personality || "friendly",
         fullContext || undefined,
         "chat"
       );
@@ -152,8 +190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const fullContext = [memoriesContext, data.context].filter(Boolean).join("\n\n");
       const response = await chat(
-        data.message, 
-        data.personality || "friendly", 
+        data.message,
+        data.personality || "friendly",
         fullContext || undefined,
         "voice"
       );
@@ -270,6 +308,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Creative content error:", error);
         res.status(500).json({ error: "Failed to generate content" });
       }
+    }
+  });
+
+  // OCR - Extract text from image
+  app.post("/api/tools/ocr", async (req: any, res) => {
+    try {
+      const { imageBase64, mimeType } = req.body;
+      if (!imageBase64) return res.status(400).json({ error: "imageBase64 is required" });
+      const result = await extractTextOCR(imageBase64, mimeType || "image/jpeg");
+      res.json({ result });
+    } catch (error) {
+      console.error("OCR error:", error);
+      res.status(500).json({ error: "Failed to extract text from image" });
+    }
+  });
+
+  // AI Image Generation (description + prompt)
+  app.post("/api/tools/image-gen", async (req: any, res) => {
+    try {
+      const { prompt, style } = req.body;
+      if (!prompt) return res.status(400).json({ error: "prompt is required" });
+      const result = await generateImagePrompt(prompt, style || "realistic");
+      res.json({ result });
+    } catch (error) {
+      console.error("Image gen error:", error);
+      res.status(500).json({ error: "Failed to generate image" });
+    }
+  });
+
+  // Grammar Checker / Writing Assistant
+  app.post("/api/tools/grammar", async (req: any, res) => {
+    try {
+      const { text, mode } = req.body;
+      if (!text) return res.status(400).json({ error: "text is required" });
+      const result = await checkGrammar(text, mode || "check");
+      res.json({ result });
+    } catch (error) {
+      console.error("Grammar error:", error);
+      res.status(500).json({ error: "Failed to check grammar" });
+    }
+  });
+
+  // Recipe AI
+  app.post("/api/tools/recipe", async (req: any, res) => {
+    try {
+      const { query, dietary, cuisine } = req.body;
+      if (!query) return res.status(400).json({ error: "query is required" });
+      const result = await generateRecipe(query, dietary || "any", cuisine || "Indian");
+      res.json({ result });
+    } catch (error) {
+      console.error("Recipe error:", error);
+      res.status(500).json({ error: "Failed to generate recipe" });
+    }
+  });
+
+  // Travel Planner
+  app.post("/api/tools/travel", async (req: any, res) => {
+    try {
+      const { destination, duration, budget, interests } = req.body;
+      if (!destination) return res.status(400).json({ error: "destination is required" });
+      const result = await planTravel(destination, duration || "3 days", budget || "moderate", interests || "culture, food, sightseeing");
+      res.json({ result });
+    } catch (error) {
+      console.error("Travel error:", error);
+      res.status(500).json({ error: "Failed to plan travel" });
+    }
+  });
+
+  // Resume Builder
+  app.post("/api/tools/resume", async (req: any, res) => {
+    try {
+      const { name, email, phone, role, experience, skills, education, achievements } = req.body;
+      if (!name || !role) return res.status(400).json({ error: "name and role are required" });
+      const result = await buildResume({ name, email, phone, role, experience, skills, education, achievements });
+      res.json({ result });
+    } catch (error) {
+      console.error("Resume error:", error);
+      res.status(500).json({ error: "Failed to build resume" });
+    }
+  });
+
+  // Health & Wellness AI
+  app.post("/api/tools/health", async (req: any, res) => {
+    try {
+      const { symptom, age, type } = req.body;
+      const result = await getHealthAdvice(symptom || "general wellness", age || "adult", type || "symptoms");
+      res.json({ result });
+    } catch (error) {
+      console.error("Health error:", error);
+      res.status(500).json({ error: "Failed to get health advice" });
     }
   });
 

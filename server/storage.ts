@@ -12,14 +12,21 @@ export interface IStorage {
   deleteMemory(id: string, userId: string): Promise<boolean>;
 }
 
+function requireDb() {
+  if (!db) throw new Error("Database is not configured. Set DATABASE_URL in your .env file.");
+  return db;
+}
+
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const d = requireDb();
+    const [user] = await d.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
+    const d = requireDb();
+    const [user] = await d
       .insert(users)
       .values(userData)
       .onConflictDoUpdate({
@@ -37,15 +44,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserSetup(userId: string, setupCompleted: boolean): Promise<void> {
-    await db.update(users).set({ setupCompleted, updatedAt: new Date() }).where(eq(users.id, userId));
+    const d = requireDb();
+    await d.update(users).set({ setupCompleted, updatedAt: new Date() }).where(eq(users.id, userId));
   }
 
   async getMemories(userId: string): Promise<Memory[]> {
-    return await db.select().from(memories).where(eq(memories.userId, userId));
+    const d = requireDb();
+    return await d.select().from(memories).where(eq(memories.userId, userId));
   }
 
   async createMemory(userId: string, memory: InsertMemory): Promise<Memory> {
-    const [newMemory] = await db
+    const d = requireDb();
+    const [newMemory] = await d
       .insert(memories)
       .values({ ...memory, userId })
       .returning();
@@ -53,11 +63,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMemory(id: string, userId: string, content: string): Promise<Memory | undefined> {
-    const [existing] = await db.select().from(memories).where(eq(memories.id, id));
-    if (!existing || existing.userId !== userId) {
-      return undefined;
-    }
-    const [updated] = await db
+    const d = requireDb();
+    const [existing] = await d.select().from(memories).where(eq(memories.id, id));
+    if (!existing || existing.userId !== userId) return undefined;
+    const [updated] = await d
       .update(memories)
       .set({ content, updatedAt: new Date() })
       .where(eq(memories.id, id))
@@ -66,11 +75,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteMemory(id: string, userId: string): Promise<boolean> {
-    const [existing] = await db.select().from(memories).where(eq(memories.id, id));
-    if (!existing || existing.userId !== userId) {
-      return false;
-    }
-    await db.delete(memories).where(eq(memories.id, id));
+    const d = requireDb();
+    const [existing] = await d.select().from(memories).where(eq(memories.id, id));
+    if (!existing || existing.userId !== userId) return false;
+    await d.delete(memories).where(eq(memories.id, id));
     return true;
   }
 }
