@@ -1,32 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useGuestMode } from "@/lib/guest-context";
 
-const GUEST_KEY = "swadesh_guest_mode";
-
-export function enableGuestMode() {
-  localStorage.setItem(GUEST_KEY, "true");
-}
+export { GuestProvider, useGuestMode } from "@/lib/guest-context";
 
 export function disableGuestMode() {
-  localStorage.removeItem(GUEST_KEY);
-}
-
-export function isGuestMode() {
-  return localStorage.getItem(GUEST_KEY) === "true";
+  localStorage.removeItem("swadesh_guest_mode");
 }
 
 export function useAuth() {
-  const guestMode = isGuestMode();
+  const { isGuest } = useGuestMode();
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["/api/auth/user"],
     retry: false,
-    // Don't even fetch if we're in guest mode
-    enabled: !guestMode,
+    enabled: !isGuest,
   });
 
-  // Guest user object — gives access to all AI tools via localStorage
-  const guestUser = guestMode
+  const guestUser = isGuest
     ? {
       id: "guest",
       firstName: "Guest",
@@ -40,8 +30,8 @@ export function useAuth() {
 
   return {
     user: guestUser ?? user,
-    isLoading: guestMode ? false : isLoading,
-    isAuthenticated: guestMode || !!user,
-    isGuest: guestMode,
+    isLoading: isGuest ? false : isLoading,
+    isAuthenticated: isGuest || !!user,
+    isGuest,
   };
 }

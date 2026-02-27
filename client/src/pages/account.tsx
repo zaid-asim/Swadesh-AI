@@ -15,7 +15,8 @@ import { SwadeshLogo } from "@/components/swadesh-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth, disableGuestMode } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
+import { useGuestMode } from "@/lib/guest-context";
 import type { User as UserType } from "@shared/schema";
 
 interface ProfileData {
@@ -29,6 +30,7 @@ export default function AccountPage() {
     const queryClient = useQueryClient();
     const [memberSince, setMemberSince] = useState("");
     const { isGuest } = useAuth();
+    const { disableGuest } = useGuestMode();
 
     const { data: profile, isLoading } = useQuery<ProfileData>({
         queryKey: ["/api/auth/profile"],
@@ -99,7 +101,7 @@ export default function AccountPage() {
                         </div>
                         <Button
                             className="w-full h-12 bg-gradient-to-r from-saffron-500 to-india-green-500 hover:opacity-90 font-semibold gap-2"
-                            onClick={() => { disableGuestMode(); window.location.href = "/api/login"; }}
+                            onClick={() => { disableGuest(); window.location.href = "/api/login"; }}
                         >
                             <LogIn className="h-5 w-5" />
                             Sign In to Unlock Full Features

@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { SettingsProvider } from "@/lib/settings-context";
 import { MusicProvider } from "@/lib/music-context";
 import { TTSProvider } from "@/lib/tts-context";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, GuestProvider } from "@/hooks/useAuth";
 import { GuestBanner } from "@/components/guest-banner";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -125,20 +125,22 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark">
-        <SettingsProvider>
-          <MusicProvider>
-            <TTSProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Router />
-              </TooltipProvider>
-            </TTSProvider>
-          </MusicProvider>
-        </SettingsProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <GuestProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="dark">
+          <SettingsProvider>
+            <MusicProvider>
+              <TTSProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Router />
+                </TooltipProvider>
+              </TTSProvider>
+            </MusicProvider>
+          </SettingsProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GuestProvider>
   );
 }
 

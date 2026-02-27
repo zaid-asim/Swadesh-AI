@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { enableGuestMode } from "@/hooks/useAuth";
+import { useGuestMode } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ParticleBackground } from "@/components/particle-background";
@@ -33,9 +33,11 @@ const stats = [
 
 export default function Landing() {
   const [, navigate] = useLocation();
+  const { enableGuest } = useGuestMode();
 
   const handleGetStarted = () => {
-    enableGuestMode();
+    enableGuest();
+    // navigate() is enough here because GuestContext state change forces a re-render
     navigate("/");
   };
 

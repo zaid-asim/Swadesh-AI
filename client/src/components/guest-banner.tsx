@@ -1,17 +1,18 @@
 import { useLocation } from "wouter";
-import { disableGuestMode } from "@/hooks/useAuth";
+import { useGuestMode } from "@/lib/guest-context";
 import { Button } from "@/components/ui/button";
 import { UserCircle, LogIn, X } from "lucide-react";
 import { useState } from "react";
 
 export function GuestBanner() {
     const [, navigate] = useLocation();
+    const { disableGuest } = useGuestMode();
     const [dismissed, setDismissed] = useState(false);
 
     if (dismissed) return null;
 
     const handleSignIn = () => {
-        disableGuestMode();
+        disableGuest();
         window.location.href = "/api/login";
     };
 
@@ -22,7 +23,7 @@ export function GuestBanner() {
                     <UserCircle className="h-4 w-4 text-white shrink-0" />
                     <p className="text-white text-sm font-medium truncate">
                         <span className="hidden sm:inline">You're in Guest Mode — </span>
-                        Sign in to save memories & sync across devices
+                        Sign in to save memories &amp; sync across devices
                     </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
