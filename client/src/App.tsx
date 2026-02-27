@@ -8,6 +8,7 @@ import { SettingsProvider } from "@/lib/settings-context";
 import { MusicProvider } from "@/lib/music-context";
 import { TTSProvider } from "@/lib/tts-context";
 import { useAuth } from "@/hooks/useAuth";
+import { GuestBanner } from "@/components/guest-banner";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Chat from "@/pages/chat";
@@ -55,7 +56,7 @@ function LoadingScreen() {
 }
 
 function Router() {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, isGuest } = useAuth();
 
   if (isLoading) return <LoadingScreen />;
 
@@ -68,8 +69,9 @@ function Router() {
     );
   }
 
-  const typedUser = user as User | undefined;
-  if (typedUser && !typedUser.setupCompleted) {
+  // Skip setup screen for guests — they go straight to the app
+  const typedUser = user as (User & { isGuest?: boolean }) | undefined;
+  if (!isGuest && typedUser && !typedUser.setupCompleted) {
     return (
       <Switch>
         <Route path="/" component={Setup} />
@@ -79,41 +81,45 @@ function Router() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/chat" component={Chat} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/account" component={AccountPage} />
-      <Route path="/music" component={Music} />
-      <Route path="/productivity" component={Productivity} />
-      <Route path="/search" component={Search} />
-      <Route path="/daily" component={SwadeshDaily} />
-      <Route path="/memory" component={MemoryPage} />
-      {/* Original Tools */}
-      <Route path="/tools/document" component={DocumentMaster} />
-      <Route path="/tools/code" component={CodeLab} />
-      <Route path="/tools/study" component={StudyPro} />
-      <Route path="/tools/language" component={LanguageConverter} />
-      <Route path="/tools/voice" component={VoiceOperations} />
-      <Route path="/tools/image" component={ImageVision} />
-      <Route path="/tools/creative" component={CreativeTools} />
-      {/* Round 2 Tools */}
-      <Route path="/tools/video" component={VideoBrain} />
-      <Route path="/tools/weather" component={WeatherTool} />
-      <Route path="/tools/calculator" component={CalculatorPage} />
-      <Route path="/tools/dictionary" component={DictionaryPage} />
-      <Route path="/tools/currency" component={CurrencyPage} />
-      <Route path="/tools/quiz" component={QuizPage} />
-      {/* Round 3 Tools */}
-      <Route path="/tools/ocr" component={OCRPage} />
-      <Route path="/tools/image-gen" component={ImageGenPage} />
-      <Route path="/tools/grammar" component={GrammarPage} />
-      <Route path="/tools/recipe" component={RecipePage} />
-      <Route path="/tools/travel" component={TravelPage} />
-      <Route path="/tools/resume" component={ResumePage} />
-      <Route path="/tools/health" component={HealthPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/chat" component={Chat} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/account" component={AccountPage} />
+        <Route path="/music" component={Music} />
+        <Route path="/productivity" component={Productivity} />
+        <Route path="/search" component={Search} />
+        <Route path="/daily" component={SwadeshDaily} />
+        <Route path="/memory" component={MemoryPage} />
+        {/* Original Tools */}
+        <Route path="/tools/document" component={DocumentMaster} />
+        <Route path="/tools/code" component={CodeLab} />
+        <Route path="/tools/study" component={StudyPro} />
+        <Route path="/tools/language" component={LanguageConverter} />
+        <Route path="/tools/voice" component={VoiceOperations} />
+        <Route path="/tools/image" component={ImageVision} />
+        <Route path="/tools/creative" component={CreativeTools} />
+        {/* Round 2 Tools */}
+        <Route path="/tools/video" component={VideoBrain} />
+        <Route path="/tools/weather" component={WeatherTool} />
+        <Route path="/tools/calculator" component={CalculatorPage} />
+        <Route path="/tools/dictionary" component={DictionaryPage} />
+        <Route path="/tools/currency" component={CurrencyPage} />
+        <Route path="/tools/quiz" component={QuizPage} />
+        {/* Round 3 Tools */}
+        <Route path="/tools/ocr" component={OCRPage} />
+        <Route path="/tools/image-gen" component={ImageGenPage} />
+        <Route path="/tools/grammar" component={GrammarPage} />
+        <Route path="/tools/recipe" component={RecipePage} />
+        <Route path="/tools/travel" component={TravelPage} />
+        <Route path="/tools/resume" component={ResumePage} />
+        <Route path="/tools/health" component={HealthPage} />
+        <Route component={NotFound} />
+      </Switch>
+      {/* Show guest banner on every page if in guest mode */}
+      {isGuest && <GuestBanner />}
+    </>
   );
 }
 

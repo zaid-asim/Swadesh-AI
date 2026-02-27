@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     ArrowLeft, User, Mail, LogOut, RefreshCw, Brain,
-    Settings, Shield, ChevronRight, Loader2, Clock, Star
+    Settings, Shield, ChevronRight, Loader2, Clock, Star, Sparkles, LogIn
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { SwadeshLogo } from "@/components/swadesh-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth, disableGuestMode } from "@/hooks/useAuth";
 import type { User as UserType } from "@shared/schema";
 
 interface ProfileData {
@@ -27,10 +28,12 @@ export default function AccountPage() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [memberSince, setMemberSince] = useState("");
+    const { isGuest } = useAuth();
 
     const { data: profile, isLoading } = useQuery<ProfileData>({
         queryKey: ["/api/auth/profile"],
         retry: false,
+        enabled: !isGuest,
     });
 
     useEffect(() => {
@@ -57,6 +60,56 @@ export default function AccountPage() {
     const user = profile?.user;
     const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "SA";
     const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Swadesh User";
+
+    // ── Guest mode UI ─────────────────────────────────────
+    if (isGuest) {
+        return (
+            <div className="min-h-screen bg-background relative">
+                <ParticleBackground />
+                <header className="fixed top-0 left-0 right-0 z-50 glassmorphism">
+                    <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Button variant="ghost" size="icon" onClick={() => navigate("/")}><ArrowLeft className="h-5 w-5" /></Button>
+                            <SwadeshLogo size="sm" animated={false} />
+                        </div>
+                        <ThemeToggle />
+                    </div>
+                </header>
+                <main className="container mx-auto px-4 pt-24 pb-12 max-w-2xl relative z-10">
+                    <h1 className="text-3xl font-bold mb-8 text-gradient-tricolor">My Account</h1>
+                    <Card className="p-8 glassmorphism border-0 text-center space-y-5">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-saffron-500 to-india-green-500 flex items-center justify-center mx-auto">
+                            <User className="h-10 w-10 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold">Guest User</h2>
+                            <p className="text-muted-foreground mt-1 text-sm">Using Swadesh AI in guest mode</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm text-left">
+                            {[
+                                "✅ All 23 AI tools available",
+                                "✅ AI Chat & Voice",
+                                "✅ OCR, Recipe, Travel, Health",
+                                "✅ Resume & Grammar AI",
+                                "❌ Memories not saved",
+                                "❌ No sync across devices",
+                            ].map(item => (
+                                <div key={item} className="p-3 rounded-lg bg-muted/30">{item}</div>
+                            ))}
+                        </div>
+                        <Button
+                            className="w-full h-12 bg-gradient-to-r from-saffron-500 to-india-green-500 hover:opacity-90 font-semibold gap-2"
+                            onClick={() => { disableGuestMode(); window.location.href = "/api/login"; }}
+                        >
+                            <LogIn className="h-5 w-5" />
+                            Sign In to Unlock Full Features
+                        </Button>
+                        <p className="text-xs text-muted-foreground">Free forever · Sign in with Google</p>
+                    </Card>
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background relative">
